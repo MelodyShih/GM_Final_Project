@@ -20,13 +20,19 @@ option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"          ON)
 option(LIBIGL_WITH_PNG               "Use PNG"            ON)
 option(LIBIGL_WITH_PYTHON            "Use Python"         OFF)
 option(LIBIGL_WITH_TETGEN            "Use Tetgen"         OFF)
-option(LIBIGL_WITH_TRIANGLE          "Use Triangle"       OFF)
+option(LIBIGL_WITH_TRIANGLE          "Use Triangle"       ON)
 option(LIBIGL_WITH_VIEWER            "Use OpenGL viewer"  ON)
 option(LIBIGL_WITH_XML               "Use XML"            OFF)
 
 find_package(LIBIGL REQUIRED QUIET)
 
 # Add your project files
-file(GLOB SRCFILES src/main.cpp src/geometry_maps.cpp src/halftone.cpp src/vertex_to_triangle.cpp)
+file(GLOB SRCFILES src/main.cpp src/geometry_maps.cpp src/halftone.cpp 
+	               src/vertex_to_triangle.cpp src/geometric_opt.cpp
+	               src/connectivity_opt.cpp)
+# file(GLOB SRCFILES src/test.cpp src/geometry_maps.cpp src/halftone.cpp 
+# 	               src/vertex_to_triangle.cpp src/geometric_opt.cpp
+# 	               src/connectivity_opt.cpp)
+
 add_executable(${PROJECT_NAME}_bin ${SRCFILES})
-target_link_libraries(${PROJECT_NAME}_bin igl::core igl::opengl_glfw igl::opengl_glfw_imgui igl::matlab igl::matlab igl::png)
+target_link_libraries(${PROJECT_NAME}_bin igl::core igl::opengl_glfw igl::opengl_glfw_imgui igl::matlab igl::matlab igl::png igl::triangle)

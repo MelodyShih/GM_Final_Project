@@ -1,5 +1,6 @@
 #include <igl/readOFF.h>
 #include <igl/readOBJ.h>
+#include <igl/writeOFF.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/opengl/glfw/imgui/ImGuiHelpers.h>
@@ -8,6 +9,8 @@
 #include "geometry_maps.h"
 #include "halftone.h"
 #include "vertex_to_triangle.h"
+#include "geometric_opt.h"
+#include "connectivity_opt.h"
 
 /* key == 1 */
 #include <igl/boundary_loop.h>
@@ -21,6 +24,9 @@
 #include <igl/parula.h>
 #include <igl/png/writePNG.h>
 
+#include <vector>
+#include <igl/vertex_triangle_adjacency.h>
+#include <igl/edge_topology.h>
 
 // Mesh
 Eigen::MatrixXd V;
@@ -40,9 +46,13 @@ Eigen::VectorXd H;
 // Halftone
 Eigen::MatrixXd test;
 // Input: imported points, #P x3
+Eigen::MatrixXd P1, P2;
 Eigen::MatrixXd P;
+Eigen::MatrixXd P_new;
+Eigen::MatrixXi E_new;
 
 Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> texture_I;
+float r_curvature, r_area;
 
 void line_texture() 
 {
@@ -61,7 +71,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	using namespace std;
 
 	/* parameterization */
-	if (key == '1')
+	if (key == 'a')
 	{
 	    /* Harmonic mapping */ 
 	    igl::boundary_loop(F,bnd);
@@ -78,7 +88,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	    viewer.core.align_camera_center(V_uv,F);
 	}
 
-	if (key == '2')
+	if (key == 'b')
 	{
 		// Fix two points on the boundary
 		VectorXi b(2,1);
@@ -100,7 +110,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	}
 
 	/* visualize geometric maps */
-	if (key == '3')
+	if (key == 'c')
 	{
 		area_distortion = area_distortion_map(V,F,V_uv);
 		
@@ -110,13 +120,35 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	    viewer.core.align_camera_center(V_uv,F);
 
 		MatrixXd C;
-		// cout << area_distortion.minCoeff()<< endl;
-		// cout << area_distortion.maxCoeff()<< endl;
-    	igl::parula(area_distortion,false,C);
+		double max, min, range;
+		max = area_distortion.maxCoeff();
+		min = area_distortion.minCoeff();
+		range = max - min;
+
+		// rescale to [0,1]
+		area_distortion = (area_distortion - min*VectorXd::Ones(area_distortion.size()))/(range);
+		for (int i = 0; i < area_distortion.size(); ++i)
+		{
+			area_distortion(i) = pow(area_distortion(i), r_area);
+		}
+		
+    	igl::jet(area_distortion,false,C);
     	viewer.data().set_colors(C);
+
+    	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R(1280,800);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> G(1280,800);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> B(1280,800);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> A(1280,800);
+
+		// Draw the scene in the buffers
+		viewer.data().show_lines = false;
+		viewer.core.draw_buffer(viewer.data(),false,R,G,B,A);
+
+		// Save it to a PNG
+		igl::png::writePNG(R,G,B,A,"/Users/yuhsuan/Downloads/ImageHalftoningFloyd/ImageHalftoningFloyd/area_map.png");
 	}
 
-	if (key == '4')
+	if (key == 'd')
 	{
 		K_gaussian = gaussian_curvature_map(V,F,V_uv);
 		
@@ -126,14 +158,30 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	    viewer.core.align_camera_center(V_uv,F);
 
 		MatrixXd C;
-		// cout << K_gaussian.minCoeff()<< endl;
-		// cout << K_gaussian.maxCoeff()<< endl;
+		double max, min, range;
+		max = K_gaussian.maxCoeff();
+		min = K_gaussian.minCoeff();
+		range = max - min;
 
-    	igl::parula(K_gaussian,false,C);
+		K_gaussian = K_gaussian/(range);
+
+    	igl::jet(K_gaussian,false,C);
     	viewer.data().set_colors(C);
+
+    	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R(640,400);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> G(640,400);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> B(640,400);
+		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> A(640,400);
+
+		// Draw the scene in the buffers
+		viewer.data().show_lines = false;
+		viewer.core.draw_buffer(viewer.data(),false,R,G,B,A);
+
+		// Save it to a PNG
+		igl::png::writePNG(R,G,B,A,"/Users/yuhsuan/Downloads/ImageHalftoningFloyd/ImageHalftoningFloyd/gaussian_curvature_map.png");
 	}
 
-	if (key == '5')
+	if (key == 'e')
 	{
 		H = mean_curvature_map(V,F,V_uv);
 		
@@ -143,77 +191,126 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	    viewer.core.align_camera_center(V_uv,F);
 
 		MatrixXd C;
-		// cout << H.minCoeff()<< endl;
-		// cout << H.maxCoeff()<< endl;
+		double max, min, range, median;
+		
+		// rescale to [0,1]
 
-    	igl::parula(H,false,C);
+		for (int i = 0; i < H.size(); ++i)
+		{
+			H(i) = abs(H(i));
+		}
+
+		max = H.maxCoeff();
+		min = H.minCoeff();
+		range = max - min;
+
+		H = H/(range);
+
+		for (int i = 0; i < H.size(); ++i)
+		{
+			H(i) = pow(abs(H(i)),r_curvature);
+		}
+
+    	igl::jet(H,false,C);
     	viewer.data().set_colors(C);
-	}
 
-	if (key == '6')
-	{
-		F_index = igl::colon<int,int,int>(0,F.rows()-1);
-		cout << F_index << endl;
-
-		viewer.data().clear();
-	    viewer.data().set_mesh(V_uv,F);
-	    viewer.data().set_uv(V_uv);
-	    viewer.core.align_camera_center(V_uv,F);
-
-		MatrixXd C;
-    	igl::parula(F_index,true,C);
     	viewer.data().set_colors(C);
-/*
-    	// Allocate temporary buffers for 1280x800 image
-		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R(1280,800);
+
+    	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R(1280,800);
 		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> G(1280,800);
 		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> B(1280,800);
 		Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> A(1280,800);
 
 		// Draw the scene in the buffers
-		viewer.core.draw_buffer(
-      		viewer.data(),false,R,G,B,A);
+		viewer.data().show_lines = false;
+		viewer.core.draw_buffer(viewer.data(),false,R,G,B,A);
 
 		// Save it to a PNG
-		igl::png::writePNG(R,G,B,A,"out.png");
-*/
+		igl::png::writePNG(R,G,B,A,"/Users/yuhsuan/Downloads/ImageHalftoningFloyd/ImageHalftoningFloyd/mean_curvature_map.png");
 	}
 
-	if (key == '7')
+	if (key == 'g')
 	{
-		P = error_diffusion(V,F,V_uv,area_distortion,bnd_uv);
+		P1 = area_diffusion(V,F,V_uv,area_distortion,bnd_uv);
+		viewer.data().clear();
+        viewer.core.align_camera_center(P1);
+        viewer.data().point_size = 5;
+        viewer.data().add_points(P1, Eigen::RowVector3d(1,0,0));
+	}
+
+	if (key == 'n')
+	{
+		P2 = error_diffusion(V,F,V_uv,H,bnd_uv);
+		viewer.data().clear();
+        viewer.core.align_camera_center(P2);
+        viewer.data().point_size = 5;
+        viewer.data().add_points(P2, Eigen::RowVector3d(1,0,0));
+	}
+
+	if (key == 'o')
+	{
+		P.resize(P1.rows()+P2.rows(), P1.cols());
+		P << P1, P2;
 		
-		// viewer.data().clear();
+		viewer.data().clear();
         viewer.core.align_camera_center(P);
         viewer.data().point_size = 5;
         viewer.data().add_points(P, Eigen::RowVector3d(1,0,0));
 	}
 
-	if (key == '8')
+
+	if (key == 'h')
 	{
-		F_new = vertex_to_triangle(P);
+		vertex_to_triangle(P,F,V_uv,F_new,P_new);
 		viewer.data().clear();
-		viewer.data().set_mesh(P, F_new);
-  		// viewer.data().set_uv(P);
+		viewer.data().set_mesh(P_new, F_new);
 	}
 
-	if (key == '9')
+	if (key == 'i')
 	{
-		F_index = locate_newvertex_to_old_mesh(P,F,V_uv);
+		F_index = locate_newvertex_to_old_mesh(P_new,F,V_uv);
 		viewer.data().clear();
-		viewer.data().set_mesh(P, F_new);
+		viewer.data().set_mesh(P_new, F_new);
 
 		MatrixXd C;
     	igl::parula(F_index,false,C);
     	viewer.data().set_colors(C);
 	}
 
-	if (key == 'a')
+	if (key == 'j')
 	{
-		V_new = project_back_to_3d(P,F,V_uv,V,F_index);
+		V_new = project_back_to_3d(P_new,F,V_uv,V,F_index);
 		viewer.data().clear();
-		viewer.data().set_mesh(V_new, F_new);
+		viewer.data().set_mesh(V_new,F_new);
 	}
+
+	if (key == 'k')
+	{
+		MatrixXd dp;
+		dp = weighted_laplacian_flow(V_new,F_new,P_new);
+
+		P_new = P_new + dp;
+
+		viewer.data().clear();
+		viewer.data().set_mesh(P_new, F_new);
+	}
+
+	if (key == 'l')
+	{
+		cout << "Before" << endl;
+		regularity_statistic(P_new,F_new);
+		regularity_opt(P_new,F_new);
+		cout << "After" << endl;
+		regularity_statistic(P_new,F_new);
+		viewer.data().set_mesh(P_new, F_new);
+	}
+
+	if (key == 'm')
+	{
+		face_aspect_ratio_opt(V_new,F_new,P_new);
+		viewer.data().set_mesh(P_new, F_new);
+	}
+
 
 	return false;
 }
@@ -224,7 +321,7 @@ int main(int argc, char *argv[])
 	using namespace Eigen;
 
 	// Load a mesh in OBJ format
-	igl::readOFF("../data/camel_head.off", V, F);
+	igl::readOBJ(argv[1], V, F);
 	igl::opengl::glfw::Viewer viewer;
 
 	line_texture();
@@ -238,16 +335,16 @@ int main(int argc, char *argv[])
 		// Define next window position + size
 		ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
 		ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
+		ImGui::InputFloat("r_curvature", &r_curvature, 0, 0, 3);
+		ImGui::InputFloat("r_area", &r_area, 0, 0, 3);
 		ImGui::Begin(
 	    	"Parametrization", nullptr,
 	    	ImGuiWindowFlags_NoSavedSettings
 		);
 
 		if (ImGui::Button("Harmonic", ImVec2(-1,0)))
-			key_down(viewer, '1', 0);
-		
-		if (ImGui::Button("LSCM", ImVec2(-1,0)))
-			key_down(viewer, '2', 0);
+			key_down(viewer, 'a', 0);
+
 		ImGui::End();
 
 		ImGui::SetNextWindowPos(ImVec2(400.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
@@ -258,16 +355,13 @@ int main(int argc, char *argv[])
 		);
 
 		if (ImGui::Button("Area distortion", ImVec2(-1,0))){
-			key_down(viewer, '3', 0);
+			key_down(viewer, 'c', 0);
 		}
 		if (ImGui::Button("Gaussian curvature", ImVec2(-1,0))){
-			key_down(viewer, '4', 0);
+			key_down(viewer, 'd', 0);
 		}
 		if (ImGui::Button("Mean curvature", ImVec2(-1,0))){
-			key_down(viewer, '5', 0);
-		}
-		if (ImGui::Button("Face index", ImVec2(-1,0))){
-			key_down(viewer, '6', 0);
+			key_down(viewer, 'e', 0);
 		}
 		ImGui::End();
 
@@ -278,8 +372,16 @@ int main(int argc, char *argv[])
 	    	ImGuiWindowFlags_NoSavedSettings
 		);
 
-		if (ImGui::Button("error_diffusion", ImVec2(-1,0))){
-			key_down(viewer, '7', 0);
+		if (ImGui::Button("resampling", ImVec2(-1,0))){
+			key_down(viewer, 'g', 0);
+		}
+
+		if (ImGui::Button("boundary points", ImVec2(-1,0))){
+			key_down(viewer, 'n', 0);
+		}
+
+		if (ImGui::Button("add points", ImVec2(-1,0))){
+			key_down(viewer, 'o', 0);
 		}
 		ImGui::End();
 
@@ -291,15 +393,35 @@ int main(int argc, char *argv[])
 		);
 
 		if (ImGui::Button("build_triangle", ImVec2(-1,0))){
-			key_down(viewer, '8', 0);
+			key_down(viewer, 'h', 0);
 		}
 
 		if (ImGui::Button("locate_vertex_to_old_mesh", ImVec2(-1,0))){
-			key_down(viewer, '9', 0);
+			key_down(viewer, 'i', 0);
 		}
 
 		if (ImGui::Button("project_back_to_3d", ImVec2(-1,0))){
-			key_down(viewer, 'a', 0);
+			key_down(viewer, 'j', 0);
+		}
+		ImGui::End();
+
+		ImGui::SetNextWindowPos(ImVec2(1040.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
+		ImGui::Begin(
+	    	"Optimization", nullptr,
+	    	ImGuiWindowFlags_NoSavedSettings
+		);
+
+		if (ImGui::Button("geometric opt", ImVec2(-1,0))){
+			key_down(viewer, 'k', 0);
+		}
+
+		if (ImGui::Button("regularity opt", ImVec2(-1,0))){
+			key_down(viewer, 'l', 0);
+		}
+
+		if (ImGui::Button("face aspect ratio opt", ImVec2(-1,0))){
+			key_down(viewer, 'm', 0);
 		}
 		
 		ImGui::End();
