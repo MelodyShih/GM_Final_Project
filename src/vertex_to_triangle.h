@@ -3,9 +3,13 @@
 
 #include <Eigen/Core>
 
-Eigen::MatrixXi vertex_to_triangle
+void vertex_to_triangle
 	(
-		const Eigen::MatrixXd& P
+		const Eigen::MatrixXd& P,
+        const Eigen::MatrixXi& F,
+        const Eigen::MatrixXd& V_uv,
+        Eigen::MatrixXi& F_new, 
+        Eigen::MatrixXd& V_new        
 	);
 
 Eigen::MatrixXi locate_newvertex_to_old_mesh

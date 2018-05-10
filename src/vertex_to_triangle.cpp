@@ -1,6 +1,9 @@
 #include "vertex_to_triangle.h"
 #include <igl/doublearea.h>
 #include <igl/matlab/matlabinterface.h>
+#include <igl/triangle/triangulate.h>
+#include <igl/writeOBJ.h>
+#include <igl/boundary_loop.h>
 
 using namespace std;
 
@@ -43,29 +46,35 @@ bool isInside(double x1, double y1,
 // Matlab instance
 Engine* engine;
 
-Eigen::MatrixXi vertex_to_triangle
+void vertex_to_triangle
         (
-        	const Eigen::MatrixXd& P
+        	const Eigen::MatrixXd& P,
+        	const Eigen::MatrixXi& F,
+	        const Eigen::MatrixXd& V_uv,
+	        Eigen::MatrixXi& F_new, 
+	        Eigen::MatrixXd& V_new
         )
 {
-	Eigen::MatrixXd F_aux;
-	igl::matlab::mlinit(&engine);
-	igl::matlab::mlsetmatrix(&engine,"P",P);
+	// Eigen::MatrixXi F_aux;
+	// Eigen::MatrixXi F_new;
+	Eigen::MatrixXi E, H;
+	Eigen::VectorXi bnd;
+	Eigen::MatrixXd VV;
 
- 	// Plot the laplacian matrix using matlab spy
-  	igl::matlab::mleval(&engine,"spy(P)");
+	
+	igl::boundary_loop(F,bnd);
+	E.resize(bnd.size(),2);
+	for (int i = 0; i < bnd.size(); ++i)
+	{
+		E(i,0) = P.rows() - bnd.size() + i;
+		E(i,1) = P.rows() - bnd.size() + i + 1;
+	}
+	E(bnd.size()-1,1) = P.rows() - bnd.size();
 
-  	// Extract the first 10 eigenvectors
-  	igl::matlab::mleval(&engine,"tri = delaunay(P(:,1),P(:,2));");
-  	// igl::matlab::mleval(&engine,"plot(P(:,1),P(:,2),'.','markersize',2);");
-  	// igl::matlab::mleval(&engine,"hold on, triplot(tri,P(:,1),P(:,2)), hold off;");
-  	igl::matlab::mleval(&engine,"tri = tri - 1;");
-  	// Plot the size of EV (only for demonstration purposes)
-  	// std::cerr << igl::matlab::mleval(&engine,"size(tri)") << std::endl;
-
-  	// Retrieve the result
-  	igl::matlab::mlgetmatrix(&engine,"tri",F_aux);
-  	return F_aux.cast<int>();
+	igl::triangle::triangulate(P,E,H,"a0.005q",V_new,F_new);
+	VV = Eigen::MatrixXd::Zero(V_new.rows(),3);
+	VV.leftCols(2) = V_new;
+	igl::writeOBJ("./test.obj",VV,F_new);
 }
 
 Eigen::MatrixXi locate_newvertex_to_old_mesh
