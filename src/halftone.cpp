@@ -24,7 +24,7 @@ MatrixXd area_diffusion
 	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
 
 	// Save it to a PNG
-	igl::png::readPNG("area_halftone.png",R,G,B,A);
+	igl::png::readPNG("../data/area_halftone.png",R,G,B,A);
 	sampling_aux = (0.2989 * R.cast<double>() + 0.5870 * G.cast<double>() + 0.1140 * B.cast<double>());
 	sampling_aux = 256*MatrixXd::Ones(sampling_aux.rows(), sampling_aux.cols()) - sampling_aux;
 
@@ -90,7 +90,7 @@ MatrixXd error_diffusion
 	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
 
 	// Save it to a PNG
-	igl::png::readPNG("curvature_halftone.png",R,G,B,A);
+	igl::png::readPNG("../data/curvature_halftone.png",R,G,B,A);
 	sampling_aux = (0.2989 * R.cast<double>() + 0.5870 * G.cast<double>() + 0.1140 * B.cast<double>());
 	sampling_aux = 256*MatrixXd::Ones(sampling_aux.rows(), sampling_aux.cols()) - sampling_aux;
 

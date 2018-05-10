@@ -233,7 +233,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	{
 		P1 = area_diffusion(V,F,V_uv,area_distortion,bnd_uv);
 		viewer.data().clear();
-        viewer.core.align_camera_center(P1);
+        viewer.core.align_camera_center(V_uv);
         viewer.data().point_size = 5;
         viewer.data().add_points(P1, Eigen::RowVector3d(1,0,0));
 	}
@@ -242,7 +242,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 	{
 		P2 = error_diffusion(V,F,V_uv,H,bnd_uv);
 		viewer.data().clear();
-        viewer.core.align_camera_center(P2);
+        viewer.core.align_camera_center(V_uv);
         viewer.data().point_size = 5;
         viewer.data().add_points(P2, Eigen::RowVector3d(1,0,0));
 	}
@@ -264,6 +264,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 		vertex_to_triangle(P,F,V_uv,F_new,P_new);
 		viewer.data().clear();
 		viewer.data().set_mesh(P_new, F_new);
+		viewer.core.align_camera_center(P_new,F_new);
 	}
 
 	if (key == 'i')
@@ -271,10 +272,6 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 		F_index = locate_newvertex_to_old_mesh(P_new,F,V_uv);
 		viewer.data().clear();
 		viewer.data().set_mesh(P_new, F_new);
-
-		MatrixXd C;
-    	igl::parula(F_index,false,C);
-    	viewer.data().set_colors(C);
 	}
 
 	if (key == 'j')
@@ -282,6 +279,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 		V_new = project_back_to_3d(P_new,F,V_uv,V,F_index);
 		viewer.data().clear();
 		viewer.data().set_mesh(V_new,F_new);
+		viewer.core.align_camera_center(V_new,F_new);
 	}
 
 	if (key == 'k')
@@ -293,6 +291,7 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 
 		viewer.data().clear();
 		viewer.data().set_mesh(P_new, F_new);
+		viewer.core.align_camera_center(P_new,F_new);
 	}
 
 	if (key == 'l')
@@ -303,12 +302,14 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 		cout << "After" << endl;
 		regularity_statistic(P_new,F_new);
 		viewer.data().set_mesh(P_new, F_new);
+		viewer.core.align_camera_center(P_new,F_new);
 	}
 
 	if (key == 'm')
 	{
 		face_aspect_ratio_opt(V_new,F_new,P_new);
 		viewer.data().set_mesh(P_new, F_new);
+		viewer.core.align_camera_center(P_new,F_new);
 	}
 
 
@@ -337,6 +338,7 @@ int main(int argc, char *argv[])
 		ImGui::SetNextWindowSize(ImVec2(200, 160), ImGuiSetCond_FirstUseEver);
 		ImGui::InputFloat("r_curvature", &r_curvature, 0, 0, 3);
 		ImGui::InputFloat("r_area", &r_area, 0, 0, 3);
+
 		ImGui::Begin(
 	    	"Parametrization", nullptr,
 	    	ImGuiWindowFlags_NoSavedSettings
