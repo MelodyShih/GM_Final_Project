@@ -48,7 +48,7 @@ void regularity_opt
     	igl::edge_flaps(F,uE,EMAP,EF,EI);
     	//igl::edge_topology(V,F,EV,FE,EF);
 
-    	int edge_index = ee;
+    	int edge_index = (rand() % uE.rows());
     	// edge_index = 1166;
 	    v[0] = uE(edge_index,0);
 	    v[1] = uE(edge_index,1);
