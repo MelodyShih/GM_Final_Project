@@ -43,7 +43,7 @@ void regularity_opt
    	double cosnew, cosold;
    	Vector2d e1, e2;
 
-    for (int ee = 0; ee < uE.rows(); ++ee)
+    for (int ee = 0; ee < 100; ++ee)
     {
     	igl::edge_flaps(F,uE,EMAP,EF,EI);
     	//igl::edge_topology(V,F,EV,FE,EF);

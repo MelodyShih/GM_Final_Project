@@ -197,54 +197,8 @@ MatrixXd error_diffusion
 	        const MatrixXd& bnd_uv
         )
 {
-	MatrixXd sampling_aux;
-	MatrixXd P;
-	// double epsilon = 0.01;
-
-	Eigen::Matrix<unsigned char,Eigen::Dynamic,Eigen::Dynamic> R,G,B,A;
-
-	// Save it to a PNG
-	igl::png::readPNG("../data/curvature_halftone.png",R,G,B,A);
-	sampling_aux = (0.2989 * R.cast<double>() + 0.5870 * G.cast<double>() + 0.1140 * B.cast<double>());
-	sampling_aux = 256*MatrixXd::Ones(sampling_aux.rows(), sampling_aux.cols()) - sampling_aux;
-
-
-	double u_min, u_max, v_min, v_max;
-	double du, dv;
-	double epsilon = 0.01;
-	int nu, nv;
-
-	nu = sampling_aux.cols();
-	nv = sampling_aux.rows();
-
-	u_min = V_uv.col(0).minCoeff();
-	u_max = V_uv.col(0).maxCoeff();
-	v_min = V_uv.col(1).minCoeff();
-	v_max = V_uv.col(1).maxCoeff();
-
-	du = (u_max - u_min)/nu;
-	dv = (v_max - v_min)/nv;
-
 	std::vector<Eigen::RowVector2d> p;
-	for (int i = 0; i < nv; ++i)
-	{
-		for (int j = 0; j < nu; ++j)
-		{
-			double ucoo = u_min+i*du;
-			double vcoo = v_min+j*dv;
-			double ucenter = 0.5*(u_min + u_max);
-			double vcenter = 0.5*(v_min + v_max);
-			double r = sqrt((ucoo - ucenter)*(ucoo - ucenter)+ (vcoo - vcenter)*(vcoo - vcenter));
-
-			if ( sampling_aux(i,j) > 127.5 && r < (ucenter - u_min - 1e-6) && r < (vcenter - v_min - 1e-6))
-			{
-				p.push_back(Eigen::RowVector2d(u_min+i*du, v_min+j*dv));
-			}
-		}
-	}
-
-	int nowrow = p.size();
-
+	MatrixXd P;
 	// Add boundary points
 	for (int i = 0; i < bnd_uv.rows(); ++i)
 	{
