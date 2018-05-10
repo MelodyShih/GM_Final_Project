@@ -48,6 +48,7 @@ Eigen::MatrixXd test;
 // Input: imported points, #P x3
 Eigen::MatrixXd P1, P2;
 Eigen::MatrixXd P;
+std::vector<Eigen::RowVector2d> p;
 Eigen::MatrixXd P_new;
 Eigen::MatrixXi E_new;
 
@@ -231,7 +232,49 @@ bool key_down(igl::opengl::glfw::Viewer& viewer, unsigned char key, int modifier
 
 	if (key == 'g')
 	{
-		P1 = area_diffusion(V,F,V_uv,area_distortion,bnd_uv);
+		level0_diffusion(V,F,V_uv,area_distortion,bnd_uv,p);
+		
+		int nrows = p.size();
+		cout << nrows << endl;
+		P1.resize(nrows, 2);
+		for (int i = 0; i < nrows; ++i)
+		{
+			P1.row(i) = p[i];
+		}
+		viewer.data().clear();
+        viewer.core.align_camera_center(V_uv);
+        viewer.data().point_size = 5;
+        viewer.data().add_points(P1, Eigen::RowVector3d(1,0,0));
+	}
+	
+	if (key == 'r')
+	{
+		level1_diffusion(V,F,V_uv,area_distortion,bnd_uv,p);
+		
+		int nrows = p.size();
+		cout << nrows << endl;
+		P1.resize(nrows, 2);
+		for (int i = 0; i < nrows; ++i)
+		{
+			P1.row(i) = p[i];
+		}
+		viewer.data().clear();
+        viewer.core.align_camera_center(V_uv);
+        viewer.data().point_size = 5;
+        viewer.data().add_points(P1, Eigen::RowVector3d(1,0,0));
+	}
+	
+	if (key == 's')
+	{
+		level2_diffusion(V,F,V_uv,area_distortion,bnd_uv,p);
+		
+		int nrows = p.size();
+		cout << nrows << endl;
+		P1.resize(nrows, 2);
+		for (int i = 0; i < nrows; ++i)
+		{
+			P1.row(i) = p[i];
+		}
 		viewer.data().clear();
         viewer.core.align_camera_center(V_uv);
         viewer.data().point_size = 5;
@@ -374,8 +417,16 @@ int main(int argc, char *argv[])
 	    	ImGuiWindowFlags_NoSavedSettings
 		);
 
-		if (ImGui::Button("resampling", ImVec2(-1,0))){
+		if (ImGui::Button("resampling level 0", ImVec2(-1,0))){
 			key_down(viewer, 'g', 0);
+		}
+
+		if (ImGui::Button("resampling level 1", ImVec2(-1,0))){
+			key_down(viewer, 'r', 0);
+		}
+
+		if (ImGui::Button("resampling level 2", ImVec2(-1,0))){
+			key_down(viewer, 's', 0);
 		}
 
 		if (ImGui::Button("boundary points", ImVec2(-1,0))){
@@ -384,6 +435,12 @@ int main(int argc, char *argv[])
 
 		if (ImGui::Button("add points", ImVec2(-1,0))){
 			key_down(viewer, 'o', 0);
+		}
+
+		if (ImGui::Button("clean points", ImVec2(-1,0))){
+			p.clear();
+			P1.resize(0,2);
+			viewer.data().clear();
 		}
 		ImGui::End();
 

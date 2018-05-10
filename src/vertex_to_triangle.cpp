@@ -72,9 +72,6 @@ void vertex_to_triangle
 	E(bnd.size()-1,1) = P.rows() - bnd.size();
 
 	igl::triangle::triangulate(P,E,H,"a0.005q",V_new,F_new);
-	VV = Eigen::MatrixXd::Zero(V_new.rows(),3);
-	VV.leftCols(2) = V_new;
-	igl::writeOBJ("./test.obj",VV,F_new);
 }
 
 Eigen::MatrixXi locate_newvertex_to_old_mesh
