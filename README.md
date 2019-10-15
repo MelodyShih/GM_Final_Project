@@ -1,10 +1,10 @@
 [![Build Status](https://travis-ci.org/NYUGeometricModeling/GM_Assignment_6.svg?branch=master)](https://travis-ci.org/NYUGeometricModeling/GM_Assignment_6)
 
 ## CSCI-GA.3033-018 Special Topic: Geometric Modeling
-## Final Project: Interactive Geomety Remeshing
+## Final Project: Interactive Geometry Remeshing
 References: http://asdf.geometry.caltech.edu/pubs/AMD02.pdf
-### Remeshing Pipline
 
+### Remeshing Pipline
 1. Geometry analysis
 2. Control map
 3. Half-toning
